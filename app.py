@@ -46,6 +46,8 @@ def load_and_process_data():
     df_india['Recovery_Rate'] = (df_india['Recovered'] / df_india['Confirmed']) * 100
     df_india['Mortality_Rate'] = (df_india['Deaths'] / df_india['Confirmed']) * 100
     df_india['Active'] = df_india['Confirmed'] - df_india['Deaths'] - df_india['Recovered']
+    
+    # Daily cases and rolling average for the new chart
     df_india['Daily_Confirmed'] = df_india['Confirmed'].diff()
     df_india['7-Day_Avg_Cases'] = df_india['Daily_Confirmed'].rolling(window=7).mean()
     
@@ -82,22 +84,50 @@ section = st.sidebar.radio("Select Dashboard Section", [
 
 # --- DASHBOARD SECTIONS ---
 if section == "1. Overview & Trends":
-    st.header("📈 Historical Trends in India")
+    st.header("📈 Historical Trends & Summary")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        fig_trends = px.line(df_india, x='Date', y=['Confirmed', 'Recovered', 'Deaths'], 
-                             title='Cumulative Cases (Confirmed, Recovered, Deaths)')
-        fig_trends.update_layout(hovermode="x unified")
-        st.plotly_chart(fig_trends, use_container_width=True)
-        
-    with col2:
-        fig_active = px.area(df_india.tail(100), x='Date', y=['Active', 'Recovered'], 
-                             title='Active vs Recovered (Last 100 Days)')
-        st.plotly_chart(fig_active, use_container_width=True)
-        
-    fig_daily = px.line(df_india.tail(100), x='Date', y=['Daily_Confirmed', '7-Day_Avg_Cases'], 
-                        title='Daily New Cases vs 7-Day Rolling Average')
+    # 1. Summary Metric Cards (Top Row)
+    latest_data = df_india.iloc[-1]
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Confirmed", f"{latest_data['Confirmed']:,.0f}")
+    col2.metric("Total Deaths", f"{latest_data['Deaths']:,.0f}")
+    col3.metric("Total Recovered", f"{latest_data['Recovered']:,.0f}")
+    col4.metric("Mortality Rate", f"{latest_data['Mortality_Rate']:.2f}%")
+    
+    st.markdown("---")
+    
+    # 2. Cumulative Trends
+    fig_trends = px.line(df_india, x='Date', y=['Confirmed', 'Recovered', 'Deaths'], 
+                         title='Cumulative Cases (Confirmed, Recovered, Deaths)')
+    fig_trends.update_layout(hovermode="x unified")
+    st.plotly_chart(fig_trends, use_container_width=True)
+    
+    # 3. Daily New Cases vs 7-Day Average (REPLACED THE BAD CHART)
+    st.subheader("📊 Daily New Cases vs 7-Day Rolling Average")
+    st.markdown("The bar chart shows daily reported cases, while the line shows the 7-day moving average to smooth out reporting delays.")
+    
+    fig_daily = go.Figure()
+    # Bar chart for daily cases
+    fig_daily.add_trace(go.Bar(
+        x=df_india['Date'], y=df_india['Daily_Confirmed'],
+        name='Daily New Cases',
+        marker_color='rgba(99, 110, 250, 0.6)'
+    ))
+    # Line chart for 7-day average
+    fig_daily.add_trace(go.Scatter(
+        x=df_india['Date'], y=df_india['7-Day_Avg_Cases'],
+        name='7-Day Rolling Average',
+        line=dict(color='red', width=3)
+    ))
+    
+    fig_daily.update_layout(
+        title='Daily New Confirmed Cases with 7-Day Average',
+        xaxis_title='Date',
+        yaxis_title='Number of Cases',
+        hovermode="x unified",
+        template="plotly_white",
+        barmode='overlay'
+    )
     st.plotly_chart(fig_daily, use_container_width=True)
 
 elif section == "2. Rates & Global Comparison":
@@ -158,3 +188,4 @@ elif section == "4. Model Evaluation":
     - **RMSE (Root Mean Squared Error)**: Standard deviation of the prediction errors.
     - **MAPE (Mean Absolute Percentage Error)**: Average percentage error of the predictions.
     """)
+    
